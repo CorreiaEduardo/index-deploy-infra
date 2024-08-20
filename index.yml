@@ -1,0 +1,66 @@
+version: '3'
+services:
+  mysql:
+    container_name: index-db
+    image: mysql:8.0
+    ports:
+      - "57102:57102"
+    networks:
+      - dex
+    volumes:
+      - data:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: index
+      MYSQL_TCP_PORT: 57102
+    healthcheck:
+      test: ["CMD", 'mysqladmin', 'ping', '-h', 'localhost', '-u', 'root', '-p$$MYSQL_ROOT_PASSWORD' ]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+  api:
+    container_name: index-api
+    image: correiaeduardo/index-api:latest
+    # build:
+    #   context: ./index-api
+    #   dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "11624:11624"
+    networks:
+      - dex
+    depends_on:
+      mysql:
+        condition: service_healthy
+        restart: true
+    environment:
+      APP_HOST: http://localhost:11624
+      APP_PORT: 11624
+      SPRING_DATASOURCE_URL: jdbc:mysql://index-db:57102/index
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+      API_SECURITY_JWT_SECRET: KVASIFLFl=pZUHz#6RVzlYf(ooer*!m
+    volumes:
+      - ./stored_images:/opt/images
+  app:
+    container_name: index-app
+    image: correiaeduardo/index-app:latest
+    # build:
+    #   context: ./index-app
+    #   dockerfile: Dockerfile
+    ports:
+      - "58889:58889"
+    networks:
+      - dex
+    environment:
+      PORT: 58889
+    depends_on:
+      api:
+        condition: service_started
+        restart: true
+networks:
+  dex: 
+    driver: bridge
+
+volumes:
+  data:
